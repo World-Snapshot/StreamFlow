@@ -1,6 +1,6 @@
 # StreamFlow
 
-To speed up our RF-based project, we developed a library based on [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion) to accelerate the Rectified Flow model, which can achieve a speedup of 300% to 600% and supports unlimited multi-GPU decoding.
+To speed up our [RF-based](https://github.com/lqiang67/rectified-flow) project, we developed a library based on [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion) to accelerate the Rectified Flow model, which can achieve a speedup of 300% to 600% and supports unlimited multi-GPU decoding.
 
 # StreamFlow: Theory, Strategy, and Implementation for High-Speed Rectified Flow Generation
 
@@ -19,6 +19,8 @@ pip install streamdiffusion[tensorrt]
 python -m streamdiffusion.tools.install-tensorrt
 ```
 
+If you encounter any problems, you can also try the .backup environment.
+
 ## Usage
 
 ```python
@@ -32,9 +34,13 @@ python test_demo_gen.py
 
 Therefore, the current public version is a relatively early and clean version. If there are any differences between the code and the paper, the code shall prevail. We may carry out major version updates from time to time in the future.
 
-**Bug:** We did not conduct any further experiments on other flow models. If there are slight differences in their time steps, they need to be adapted independently.
+**Compatibility:** We did not conduct any further experiments on other flow models. If there are slight differences in their time steps, they need to be adapted independently.
 
 **Example:** We are currently in the process of cleaning up. If you want to use it in various scenarios as soon as possible, you can develop it yourself. You can study the example of StreamDiffusion and then modify it to call our library.
+
+## Contact
+
+If you are interested in matters such as the code, how to collaborate, please contact [@FangSen9000](https://github.com/FangSen9000).
 
 ## Acknowledgments
 

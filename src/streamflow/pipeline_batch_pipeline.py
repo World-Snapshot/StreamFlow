@@ -241,7 +241,7 @@ class PipelineBatchStreamFlow:
         """原始逐步去噪方法"""
         latents = x_t_latent
         use_cfg = self.guidance_scale > 1.0 and self.cfg_type != "none"
-        
+
         for i, t in enumerate(self.sub_timesteps):
             if use_cfg:
                 latent_model_input = torch.cat([latents] * 2)
@@ -253,10 +253,21 @@ class PipelineBatchStreamFlow:
                 latent_model_input = latents
                 prompt_embeds = self.prompt_embeds
 
+            # 🔧 TensorRT兼容：确保timestep是正确shape的tensor [batch_size]
+            batch_size = latent_model_input.shape[0]
+            if isinstance(t, torch.Tensor) and t.dim() == 0:
+                # 标量tensor -> [batch_size] tensor
+                timestep = t.unsqueeze(0).repeat(batch_size)
+            elif isinstance(t, torch.Tensor):
+                timestep = t
+            else:
+                # 如果是Python数值，转换为tensor
+                timestep = torch.tensor([t] * batch_size, device=self.device, dtype=torch.long)
+
             with torch.no_grad():
                 noise_pred = self.unet(
                     latent_model_input,
-                    t,
+                    timestep,  # 🔧 使用正确shape的timestep
                     encoder_hidden_states=prompt_embeds,
                     return_dict=False,
                 )[0]

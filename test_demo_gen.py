@@ -152,22 +152,38 @@ elif ACCELERATION == "tensorrt":
     try:
         from src.streamdiffusion.acceleration.tensorrt import accelerate_with_tensorrt
         from src.streamdiffusion.pipeline import StreamDiffusion
-        
-        # 创建引擎目录
-        engine_dir = "tensorrt_engines_test59_fixed"
+
+        # 🔧 根据USE_PIPELINE_BATCH选择合适的编译配置
+        if USE_PIPELINE_BATCH:
+            # 流水线模式：需要处理4个不同阶段 (batch_size=4)
+            compile_use_denoising_batch = True
+            compile_max_batch_size = 4
+            engine_dir = "tensorrt_engines_pipeline_batch"
+        else:
+            # 普通模式：逐步去噪 (batch_size=1 或 2 for CFG)
+            compile_use_denoising_batch = False
+            compile_max_batch_size = 2 if GUIDANCE_SCALE > 1.0 and CFG_TYPE != "none" else 1
+            engine_dir = "tensorrt_engines_sequential"
+
         os.makedirs(engine_dir, exist_ok=True)
-        
+        print(f"   引擎目录: {engine_dir}")
+        print(f"   编译batch_size: {compile_max_batch_size}")
+
         temp_stream = StreamDiffusion(
             pipe, t_index_list=[0, 1, 2, 3], torch_dtype=torch.float16,
-            frame_buffer_size=1, cfg_type=CFG_TYPE, use_denoising_batch=True,
+            frame_buffer_size=1, cfg_type=CFG_TYPE,
+            use_denoising_batch=compile_use_denoising_batch,  # 🔧 根据模式选择
             width=512, height=512,
         )
-        
+
         temp_stream.prepare(PROMPT_BASE, NEGATIVE_PROMPT, num_inference_steps=NUM_INFERENCE_STEPS, guidance_scale=GUIDANCE_SCALE)
-        
+
         print("   编译TensorRT引擎...")
         accelerated_stream = accelerate_with_tensorrt(
-            temp_stream, engine_dir=engine_dir, max_batch_size=4, min_batch_size=1, use_cuda_graph=False,
+            temp_stream, engine_dir=engine_dir,
+            max_batch_size=compile_max_batch_size,  # 🔧 匹配推理时的batch size
+            min_batch_size=1,
+            use_cuda_graph=False,
         )
         
         stream.unet = accelerated_stream.unet
