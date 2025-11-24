@@ -1,5 +1,43 @@
 # StreamFlow
 
-To speed up our decoder (based Rectified Flow), we developed a library based on [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion) to accelerate the Rectified Flow model, which can achieve a speedup of 300% to 600% and supports unlimited multi-GPU decoding.
+To speed up our RF-based project, we developed a library based on [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion) to accelerate the Rectified Flow model, which can achieve a speedup of 300% to 600% and supports unlimited multi-GPU decoding.
 
-We are probably one of the few open-source tools that accelerate RF processing. We wrote approximately 30,000 to 100,000 lines of code to improve this acceleration library.
+# StreamFlow: Theory, Strategy, and Implementation for High-Speed Rectified Flow Generation
+
+We are probably one of the few open-source tools that accelerate RF processing, and we are the first work to systematically optimize and accelerate the Rectified Flow model.
+
+
+## Env
+
+cd StreamFlow repo,
+
+```code
+conda create -n StreamFlow python=3.11 -y
+conda activate StreamFlow
+pip install -r env/requirements_WaveGen.txt
+pip install streamdiffusion[tensorrt]
+python -m streamdiffusion.tools.install-tensorrt
+```
+
+## Usage
+
+```python
+## Default: TensorRT is off.
+python test_demo_gen.py
+```
+
+## About Work
+
+**Code:** 1. This StreamFlow dependency library is frequently updated, so some of the code may change frequently. 2. Since the World Snapshot organization relies on this acceleration library for many of its projects, and each project has its own adjusted variant, it is very difficult to organize. 
+
+Therefore, the current public version is a relatively early and clean version. If there are any differences between the code and the paper, the code shall prevail. We may carry out major version updates from time to time in the future.
+
+**Bug:** We did not conduct any further experiments on other flow models. If there are slight differences in their time steps, they need to be adapted independently.
+
+**Example:** We are currently in the process of cleaning up. If you want to use it in various scenarios as soon as possible, you can develop it yourself. You can study the example of StreamDiffusion and then modify it to call our library.
+
+## Acknowledgments
+
+Thank all the authors, colleagues and friends for their work and discussions. Thank [@ZL](https://github.com/ZonglinL) for developing a multi-GPU example.
+
+Finally, we would like to express our gratitude to [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion). We developed based on their work.
