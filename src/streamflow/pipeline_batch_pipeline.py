@@ -329,14 +329,35 @@ class PipelineBatchStreamFlow:
             device=self.device,
             dtype=self.dtype
         )
-        
+
         # 使用流水线批量去噪
         x_0_pred_out = self.predict_x0_pipeline_batch(x_t_latent)
         x_output = self.decode_image_perflow(x_0_pred_out).detach().clone()
-        
+
         self.step_counter += 1
-        
+
         return x_output
+
+    @torch.no_grad()
+    def generate_latent(self, batch_size: int = 1) -> torch.Tensor:
+        """只生成latent，不解码（用于批量VAE解码优化）"""
+        x_t_latent = torch.randn(
+            (batch_size, 4, self.latent_height, self.latent_width),
+            device=self.device,
+            dtype=self.dtype
+        )
+
+        # 使用流水线批量去噪
+        x_0_pred_out = self.predict_x0_pipeline_batch(x_t_latent)
+
+        self.step_counter += 1
+
+        return x_0_pred_out
+
+    @torch.no_grad()
+    def decode_latents(self, latents: torch.Tensor) -> torch.Tensor:
+        """批量解码latents（支持batch）"""
+        return self.decode_image_perflow(latents).detach().clone()
 
     def get_inference_time(self) -> float:
         """获取平均推理时间"""
