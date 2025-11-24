@@ -7,15 +7,26 @@ Test58: 简洁的高性能生成器
 - ⚡ 流水线批量去噪
 - 🔧 简单配置，直接生成
 - 📊 清晰的性能报告
+- 📄 支持YAML配置文件
 """
 
 import torch, torchvision
 from src.scheduler_perflow import PeRFlowScheduler
 import time
 import os
+import sys
+import yaml
+from pathlib import Path
 
 from diffusers import AutoencoderTiny, StableDiffusionPipeline
 from src.streamflow.pipeline_batch_pipeline import PipelineBatchStreamFlow
+
+
+def load_config_from_yaml(yaml_path):
+    """从YAML文件加载配置"""
+    with open(yaml_path, 'r') as f:
+        config = yaml.safe_load(f)
+    return config
 
 
 def add_tensorrt_timestep_compatibility(stream):
@@ -75,46 +86,95 @@ def add_tensorrt_timestep_compatibility(stream):
 # 🔧 配置区域 - 所有设置都在这里
 # ================================
 
-# 基础配置（基于test43）
-USE_TINY_VAE = True              # 设为True可进一步加速，但会轻微影响质量
-USE_INT8_VAE = False             # 🔬 实验性：INT8量化VAE（更快但可能影响质量）
-ACCELERATION = "xformers"        # "xformers", "tensorrt", "none" - 🚀 测试修复后的tensorrt
-ITERATIONS = 100                 # 生成图像数量
+# 🔧 检查是否通过命令行传入YAML配置
+if len(sys.argv) > 1 and sys.argv[1].endswith('.yaml'):
+    CONFIG_PATH = sys.argv[1]
+    print(f"📄 从YAML加载配置: {CONFIG_PATH}")
+    config = load_config_from_yaml(CONFIG_PATH)
+    CONFIG_NAME = config.get('name', 'unnamed')
 
-# 流水线配置
-USE_PIPELINE_BATCH = True        # 🚀 关键新增：真正的批量去噪开关 True=流水线批量去噪，False=原始StreamFlow
-CFG_TYPE = "none"               # "none", "full", "self", "initialize" - I usually use none and full
-GUIDANCE_SCALE = 7.5            # CFG强度
+    # 从YAML加载配置
+    USE_TINY_VAE = config['model']['use_tiny_vae']
+    USE_INT8_VAE = config['model']['use_int8_vae']
+    ACCELERATION = config['acceleration']['type']
+    USE_CUDA_GRAPH = config['acceleration'].get('use_cuda_graph', False)
+    ITERATIONS = config['test']['iterations']
 
-# 去噪步数配置
-USE_DYNAMIC_STEPS = False       # 🔧 是否使用动态步数
-                                # False=固定4步[0,1,2,3]（质量好，推荐）
-                                # True=根据NUM_INFERENCE_STEPS动态（灵活，测试用）
-NUM_INFERENCE_STEPS = 4         # 推理步数（仅当USE_DYNAMIC_STEPS=True时生效）
+    USE_PIPELINE_BATCH = config['pipeline']['use_pipeline_batch']
+    FRAME_BUFFER_SIZE = config['pipeline'].get('frame_buffer_size', 1)
+    VAE_DECODE_METHOD = config['pipeline'].get('vae_decode_method', 'normalize')
+    DO_ADD_NOISE = config['pipeline'].get('do_add_noise', True)
+    CFG_TYPE = config['pipeline']['cfg_type']
+    GUIDANCE_SCALE = config['pipeline']['guidance_scale']
 
-# TensorRT高级配置
-USE_TENSORRT_COMPATIBILITY = False  # 🔧 TensorRT时间步兼容性层
-                                     # False=直接批处理（更快2fps，但是轻微损失质量）
-                                     # True=拆分处理不同时间步（安全但会慢2fps）
+    USE_DYNAMIC_STEPS = config['denoising']['use_dynamic_steps']
+    NUM_INFERENCE_STEPS = config['denoising']['num_inference_steps']
 
-# VAE优化配置
-VAE_BATCH_SIZE = 1  # 🚀 VAE批量解码：累积N张latent后批量解码
-                    # 1=逐个解码（慢，延迟低）
-                    # 4=批量解码（快50%+，延迟稍高）
-                    # 建议：离线生成用4-8，实时用1-2
+    USE_TENSORRT_COMPATIBILITY = config['tensorrt']['use_compatibility']
+    TENSORRT_OPTIMIZATION = config['tensorrt'].get('optimization', {})
 
-# 提示词
-PROMPT_BASE = "RAW photo, 8k uhd, dslr, high quality, film grain, highly detailed, masterpiece"
-PROMPT_SUBJECT = "A man with brown skin, a beard, and dark eyes"
-NEGATIVE_PROMPT = "distorted, blur, smooth, low-quality, warm, haze, over-saturated, high-contrast, out of focus, dark"
+    VAE_BATCH_SIZE = config['vae']['batch_size']
 
-# 输出配置
-OUTPUT_DIR = "test59_simple_output"
-SEED = 1024
+    PROMPT_BASE = config['prompts']['base']
+    PROMPT_SUBJECT = config['prompts']['subject']
+    NEGATIVE_PROMPT = config['prompts']['negative']
 
-print("🚀 PeRFlow高性能生成器 (Test59)")
+    OUTPUT_DIR = os.path.join(config['test']['output_dir'], CONFIG_NAME)
+    SEED = config['test']['seed']
+    WIDTH = config['test'].get('width', 512)
+    HEIGHT = config['test'].get('height', 512)
+
+else:
+    # 默认配置（保持原有的硬编码配置）
+    CONFIG_NAME = "default"
+
+    # 基础配置（基于test43）
+    USE_TINY_VAE = True              # 设为True可进一步加速，但会轻微影响质量
+    USE_INT8_VAE = False             # 🔬 实验性：INT8量化VAE（更快但可能影响质量）
+    ACCELERATION = "xformers"        # "xformers", "tensorrt", "none" - 🚀 测试修复后的tensorrt
+    USE_CUDA_GRAPH = False           # CUDA Graphs优化
+    ITERATIONS = 100                 # 生成图像数量
+
+    # 流水线配置
+    USE_PIPELINE_BATCH = True        # 🚀 关键新增：真正的批量去噪开关 True=流水线批量去噪，False=原始StreamFlow
+    FRAME_BUFFER_SIZE = 1            # 帧缓冲大小
+    VAE_DECODE_METHOD = "normalize"  # VAE解码方法
+    DO_ADD_NOISE = True              # 添加噪声
+    CFG_TYPE = "none"               # "none", "full", "self", "initialize" - I usually use none and full
+    GUIDANCE_SCALE = 7.5            # CFG强度
+
+    # 去噪步数配置
+    USE_DYNAMIC_STEPS = False       # 🔧 是否使用动态步数
+                                    # False=固定4步[0,1,2,3]（质量好，推荐）
+                                    # True=根据NUM_INFERENCE_STEPS动态（灵活，测试用）
+    NUM_INFERENCE_STEPS = 4         # 推理步数（仅当USE_DYNAMIC_STEPS=True时生效）
+
+    # TensorRT高级配置
+    USE_TENSORRT_COMPATIBILITY = False  # 🔧 TensorRT时间步兼容性层
+                                         # False=直接批处理（更快2fps，但是轻微损失质量）
+                                         # True=拆分处理不同时间步（安全但会慢2fps）
+    TENSORRT_OPTIMIZATION = {}       # TensorRT编译优化选项
+
+    # VAE优化配置
+    VAE_BATCH_SIZE = 1  # 🚀 VAE批量解码：累积N张latent后批量解码
+                        # 1=逐个解码（慢，延迟低）
+                        # 4=批量解码（快50%+，延迟稍高）
+                        # 建议：离线生成用4-8，实时用1-2
+
+    # 提示词
+    PROMPT_BASE = "RAW photo, 8k uhd, dslr, high quality, film grain, highly detailed, masterpiece"
+    PROMPT_SUBJECT = "A man with brown skin, a beard, and dark eyes"
+    NEGATIVE_PROMPT = "distorted, blur, smooth, low-quality, warm, haze, over-saturated, high-contrast, out of focus, dark"
+
+    # 输出配置
+    OUTPUT_DIR = "test59_simple_output"
+    SEED = 1024
+    WIDTH = 512
+    HEIGHT = 512
+
+print(f"🚀 PeRFlow高性能生成器 - 配置: {CONFIG_NAME}")
 print("=" * 50)
-print(f"🔧 配置:")
+print(f"🔧 配置详情:")
 vae_desc = "TinyVAE" if USE_TINY_VAE else "原始VAE"
 if USE_INT8_VAE:
     vae_desc += " + INT8量化"
@@ -139,6 +199,8 @@ pipe.scheduler = PeRFlowScheduler.from_config(
     num_time_windows=4
 )
 pipe.to("cuda", torch.float16)
+# 重置显存峰值统计，便于监控
+torch.cuda.reset_peak_memory_stats()
 
 if USE_TINY_VAE:
     if USE_INT8_VAE:
@@ -175,11 +237,11 @@ stream = PipelineBatchStreamFlow(
     pipe,
     t_index_list=t_index_list,  # 动态生成，跟随NUM_INFERENCE_STEPS
     torch_dtype=torch.float16,
-    frame_buffer_size=1,  # 帧缓冲大小：1=无缓冲，2-8=多帧缓冲
+    frame_buffer_size=FRAME_BUFFER_SIZE,  # 帧缓冲大小：1=无缓冲，2-8=多帧缓冲
     cfg_type=CFG_TYPE,  # none, full, self, initialize
     use_pipeline_batch=USE_PIPELINE_BATCH,  # 启用流水线批量去噪
-    vae_decode_method="normalize",  # "normalize" 或 "dynamic" - 优化的解码方法
-    do_add_noise=True,  # 添加噪声：True=标准模式，False=快速模式
+    vae_decode_method=VAE_DECODE_METHOD,  # "normalize", "dynamic", "clamp"
+    do_add_noise=DO_ADD_NOISE,  # 添加噪声：True=标准模式，False=快速模式
 )
 
 # ================================
@@ -199,12 +261,12 @@ elif ACCELERATION == "tensorrt":
             # 流水线模式：需要处理4个不同阶段 (batch_size=4)
             compile_use_denoising_batch = True
             compile_max_batch_size = 4
-            engine_dir = "tensorrt_engines_pipeline_batch"
+            engine_dir = os.path.join("tensorrt_engines_pipeline_batch", CONFIG_NAME)
         else:
             # 普通模式：逐步去噪 (batch_size=1 或 2 for CFG)
             compile_use_denoising_batch = False
             compile_max_batch_size = 2 if GUIDANCE_SCALE > 1.0 and CFG_TYPE != "none" else 1
-            engine_dir = "tensorrt_engines_sequential"
+            engine_dir = os.path.join("tensorrt_engines_sequential", CONFIG_NAME)
 
         os.makedirs(engine_dir, exist_ok=True)
         print(f"   引擎目录: {engine_dir}")
@@ -335,20 +397,31 @@ if VAE_BATCH_SIZE > 1:
 else:
     print(f"📝 逐个解码模式 (VAE_BATCH_SIZE=1)")
 
-    # 原始逐个解码模式
+    # 原始逐个解码模式（拆分UNet/VAE计时，便于评估）
     for i in range(ITERATIONS):
         torch.cuda.synchronize()
-        start_time = time.time()
+        unet_start = time.time()
 
-        # 生成图像
-        sample = stream.txt2img()
+        # 只生成latent
+        latent = stream.generate_latent()
 
         torch.cuda.synchronize()
-        elapsed = time.time() - start_time
-        results.append(elapsed)
+        unet_time = time.time() - unet_start
+
+        torch.cuda.synchronize()
+        vae_start = time.time()
+
+        # 解码
+        sample = stream.decode_latents(latent)
+
+        torch.cuda.synchronize()
+        vae_time = time.time() - vae_start
+
+        total_time = unet_time + vae_time
+        results.append(total_time)
 
         # 计算性能
-        img_per_sec = 1 / elapsed
+        img_per_sec = 1 / total_time
         avg_fps = len(results) / sum(results)
 
         # 保存图像
@@ -359,7 +432,7 @@ else:
 
         # 显示进度
         if i % 10 == 0 or i < 10:
-            print(f"图像 {i+1:3d}/{ITERATIONS} | FPS: {img_per_sec:6.2f} | 平均FPS: {avg_fps:6.2f} | 用时: {elapsed:.3f}s")
+            print(f"图像 {i+1:3d}/{ITERATIONS} | FPS: {img_per_sec:6.2f} | 平均FPS: {avg_fps:6.2f} | 生成: {unet_time:.3f}s | 解码: {vae_time:.3f}s")
 
 # ================================
 # 📊 最终统计
@@ -425,3 +498,10 @@ if ACCELERATION == "tensorrt" and USE_PIPELINE_BATCH:
     print(f"   5. 享受无噪音的TensorRT加速！")
 
 print(f"\\n🎉 生成完成！")
+
+# 打印显存峰值（备用监控）
+try:
+    peak_mem_mb = torch.cuda.max_memory_reserved() / (1024 * 1024)
+    print(f"PEAK_MEM_MB: {peak_mem_mb:.2f}")
+except Exception:
+    pass

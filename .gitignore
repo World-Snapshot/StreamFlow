@@ -205,3 +205,10 @@ __pycache__/
 
 models/RealESR*
 *.safetensors
+
+
+create_proper_eval_configs.py
+create_eval_configs.py
+tensorrt_engines_sequential
+tensorrt_engines_pipeline_batch
+eval_*

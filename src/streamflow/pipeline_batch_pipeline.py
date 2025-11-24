@@ -283,6 +283,15 @@ class PipelineBatchStreamFlow:
 
     def decode_image_perflow(self, x_0_pred_out: torch.Tensor) -> torch.Tensor:
         """VAE解码"""
+        # 确保VAE与输入在同一device/dtype，避免CPU/GPU混用
+        if hasattr(self.vae, "to"):
+            try:
+                # 一些TensorRT VAE的to()返回None，避免将self.vae覆盖为None
+                moved = self.vae.to(device=x_0_pred_out.device, dtype=x_0_pred_out.dtype)
+                if moved is not None:
+                    self.vae = moved
+            except Exception:
+                pass
         with torch.no_grad():
             # Check if this is WSG VAE and handle dtype properly
             if hasattr(self.vae, 'decode_rgb_only_by_default'):
