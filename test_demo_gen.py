@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-Test58: 简洁的高性能生成器
+Demo: Concise high-performance generator
 
-基于test57的所有功能，但去掉实验性代码，保持简洁：
-- 🚀 TensorRT修复版（自动处理时间步兼容性）
-- ⚡ 流水线批量去噪
-- 🔧 简单配置，直接生成
-- 📊 清晰的性能报告
-- 📄 支持YAML配置文件
+- 🚀 TensorRT fix (automatic timestep compatibility)
+- ⚡ Pipeline batch denoising
+- 🔧 Simple config, direct generation
+- 📊 Clear performance report
+- 📄 YAML config support
 """
 
 import torch, torchvision
@@ -23,7 +22,7 @@ from src.streamflow.pipeline_batch_pipeline import PipelineBatchStreamFlow
 
 
 def load_config_from_yaml(yaml_path):
-    """从YAML文件加载配置"""
+    """Load configuration from a YAML file."""
     with open(yaml_path, 'r') as f:
         config = yaml.safe_load(f)
     return config
@@ -31,27 +30,27 @@ def load_config_from_yaml(yaml_path):
 
 def add_tensorrt_timestep_compatibility(stream):
     """
-    🚀 关键修复：添加TensorRT时间步兼容性
-    
-    问题：TensorRT不能处理不同时间步 [1000, 750, 500, 250]
-    解决：在检测到不同时间步时，分解为单独调用
+    🚀 Key fix: add TensorRT timestep compatibility
+
+    Problem: TensorRT cannot handle mixed timesteps [1000, 750, 500, 250]
+    Solution: when mixed timesteps are detected, split into individual calls
     """
     if not hasattr(stream.unet, 'forward'):
-        print("⚠️  UNet没有forward方法，跳过兼容性修复")
+        print("⚠️  UNet has no forward method, skip compatibility patch")
         return None
     
     original_forward = stream.unet.forward
     
     def tensorrt_compatible_forward(sample, timestep, encoder_hidden_states, **kwargs):
         """
-        TensorRT兼容的forward方法
-        自动处理不同时间步问题
+        TensorRT-compatible forward
+        Automatically handles mixed timesteps
         """
-        # 检查是否有不同时间步
+        # Check for mixed timesteps
         if isinstance(timestep, torch.Tensor) and timestep.dim() > 0 and len(timestep) > 1:
             unique_timesteps = torch.unique(timestep)
             if len(unique_timesteps) > 1:
-                # 🎯 检测到不同时间步，分解处理
+                # 🎯 Detected mixed timesteps, process one by one
                 batch_size = sample.shape[0]
                 results = []
                 for i in range(batch_size):
@@ -64,7 +63,7 @@ def add_tensorrt_timestep_compatibility(stream):
                     )
                     results.append(single_result)
                 
-                # 重新组装结果
+                # Reassemble results
                 if isinstance(results[0], tuple):
                     assembled = []
                     for i in range(len(results[0])):
@@ -73,27 +72,27 @@ def add_tensorrt_timestep_compatibility(stream):
                 else:
                     return torch.cat(results, dim=0)
         
-        # 相同时间步或单个时间步，直接调用TensorRT
+        # Same timestep or single timestep: call TensorRT directly
         return original_forward(sample, timestep, encoder_hidden_states, **kwargs)
     
-    # 应用兼容性修复
+    # Apply compatibility fix
     stream.unet.forward = tensorrt_compatible_forward
-    print("✅ TensorRT时间步兼容性已添加")
+    print("✅ TensorRT timestep compatibility added")
     return original_forward
 
 
 # ================================
-# 🔧 配置区域 - 所有设置都在这里
+# 🔧 Configuration section
 # ================================
 
-# 🔧 检查是否通过命令行传入YAML配置
+# 🔧 Check if a YAML config is provided via CLI
 if len(sys.argv) > 1 and sys.argv[1].endswith('.yaml'):
     CONFIG_PATH = sys.argv[1]
-    print(f"📄 从YAML加载配置: {CONFIG_PATH}")
+    print(f"📄 Loading config from YAML: {CONFIG_PATH}")
     config = load_config_from_yaml(CONFIG_PATH)
     CONFIG_NAME = config.get('name', 'unnamed')
 
-    # 从YAML加载配置
+    # Load config fields
     USE_TINY_VAE = config['model']['use_tiny_vae']
     USE_INT8_VAE = config['model']['use_int8_vae']
     ACCELERATION = config['acceleration']['type']
@@ -125,68 +124,61 @@ if len(sys.argv) > 1 and sys.argv[1].endswith('.yaml'):
     HEIGHT = config['test'].get('height', 512)
 
 else:
-    # 默认配置（保持原有的硬编码配置）
+    # Default config (keep original hardcoded setup)
     CONFIG_NAME = "default"
 
-    # 基础配置（基于test43）
-    USE_TINY_VAE = True              # 设为True可进一步加速，但会轻微影响质量
-    USE_INT8_VAE = False             # 🔬 实验性：INT8量化VAE（更快但可能影响质量）
-    ACCELERATION = "xformers"        # "xformers", "tensorrt", "none" - 🚀 测试修复后的tensorrt
-    USE_CUDA_GRAPH = False           # CUDA Graphs优化
-    ITERATIONS = 100                 # 生成图像数量
+    # Base config
+    USE_TINY_VAE = True              # True: faster, slight quality drop
+    USE_INT8_VAE = False             # Experimental INT8 VAE
+    ACCELERATION = "xformers"        # "xformers", "tensorrt", "none"
+    USE_CUDA_GRAPH = False           # CUDA Graph optimization
+    ITERATIONS = 100                 # Number of images
 
-    # 流水线配置
-    USE_PIPELINE_BATCH = True        # 🚀 关键新增：真正的批量去噪开关 True=流水线批量去噪，False=原始StreamFlow
-    FRAME_BUFFER_SIZE = 1            # 帧缓冲大小
-    VAE_DECODE_METHOD = "normalize"  # VAE解码方法
-    DO_ADD_NOISE = True              # 添加噪声
-    CFG_TYPE = "none"               # "none", "full", "self", "initialize" - I usually use none and full
-    GUIDANCE_SCALE = 7.5            # CFG强度
+    # Pipeline config
+    USE_PIPELINE_BATCH = True        # True=pipeline batch denoising, False=original
+    FRAME_BUFFER_SIZE = 1            # Frame buffer size
+    VAE_DECODE_METHOD = "normalize"  # VAE decode method
+    DO_ADD_NOISE = True              # Add noise
+    CFG_TYPE = "none"               # "none", "full", "self", "initialize"
+    GUIDANCE_SCALE = 7.5            # CFG strength
 
-    # 去噪步数配置
-    USE_DYNAMIC_STEPS = False       # 🔧 是否使用动态步数
-                                    # False=固定4步[0,1,2,3]（质量好，推荐）
-                                    # True=根据NUM_INFERENCE_STEPS动态（灵活，测试用）
-    NUM_INFERENCE_STEPS = 4         # 推理步数（仅当USE_DYNAMIC_STEPS=True时生效）
+    # Denoising steps config
+    USE_DYNAMIC_STEPS = False       # False=fixed 4 steps [0,1,2,3]; True=NUM_INFERENCE_STEPS
+    NUM_INFERENCE_STEPS = 4         # Used only when USE_DYNAMIC_STEPS=True
 
-    # TensorRT高级配置
-    USE_TENSORRT_COMPATIBILITY = False  # 🔧 TensorRT时间步兼容性层
-                                         # False=直接批处理（更快2fps，但是轻微损失质量）
-                                         # True=拆分处理不同时间步（安全但会慢2fps）
-    TENSORRT_OPTIMIZATION = {}       # TensorRT编译优化选项
+    # TensorRT config
+    USE_TENSORRT_COMPATIBILITY = False  # Timestep compatibility layer
+    TENSORRT_OPTIMIZATION = {}       # TensorRT build options
 
-    # VAE优化配置
-    VAE_BATCH_SIZE = 1  # 🚀 VAE批量解码：累积N张latent后批量解码
-                        # 1=逐个解码（慢，延迟低）
-                        # 4=批量解码（快50%+，延迟稍高）
-                        # 建议：离线生成用4-8，实时用1-2
+    # VAE config
+    VAE_BATCH_SIZE = 1  # 1=per image; 4+=batched decode faster but higher latency
 
-    # 提示词
+    # Prompts
     PROMPT_BASE = "RAW photo, 8k uhd, dslr, high quality, film grain, highly detailed, masterpiece"
     PROMPT_SUBJECT = "A man with brown skin, a beard, and dark eyes"
     NEGATIVE_PROMPT = "distorted, blur, smooth, low-quality, warm, haze, over-saturated, high-contrast, out of focus, dark"
 
-    # 输出配置
+    # Output config
     OUTPUT_DIR = "test59_simple_output"
     SEED = 1024
     WIDTH = 512
     HEIGHT = 512
 
-print(f"🚀 PeRFlow高性能生成器 - 配置: {CONFIG_NAME}")
+print(f"🚀 PeRFlow high-performance generator - config: {CONFIG_NAME}")
 print("=" * 50)
-print(f"🔧 配置详情:")
-vae_desc = "TinyVAE" if USE_TINY_VAE else "原始VAE"
+print(f"🔧 Config details:")
+vae_desc = "TinyVAE" if USE_TINY_VAE else "Original VAE"
 if USE_INT8_VAE:
-    vae_desc += " + INT8量化"
+    vae_desc += " + INT8 quantization"
 print(f"   VAE: {vae_desc}")
-print(f"   加速: {ACCELERATION}")
-print(f"   流水线批量: {'✅' if USE_PIPELINE_BATCH else '❌'}")
-print(f"   生成数量: {ITERATIONS}")
+print(f"   Acceleration: {ACCELERATION}")
+print(f"   Pipeline batch: {'✅' if USE_PIPELINE_BATCH else '❌'}")
+print(f"   Num images: {ITERATIONS}")
 
 # ================================
-# 📦 模型加载
+# 📦 Model loading
 # ================================
-print(f"\\n📦 加载模型...")
+print(f"\\n📦 Loading model...")
 
 pipe = StableDiffusionPipeline.from_pretrained(
     "hansyan/perflow-sd15-dreamshaper", 
@@ -199,146 +191,146 @@ pipe.scheduler = PeRFlowScheduler.from_config(
     num_time_windows=4
 )
 pipe.to("cuda", torch.float16)
-# 重置显存峰值统计，便于监控
+# Reset peak memory stats for monitoring
 torch.cuda.reset_peak_memory_stats()
 
 if USE_TINY_VAE:
     if USE_INT8_VAE:
-        # 加载预量化的INT8 TinyVAE
+        # Load pre-quantized INT8 TinyVAE
         from utils.quantization import load_quantized_tinyvae
         pipe.vae = load_quantized_tinyvae(device=pipe.device, dtype=pipe.dtype)
     else:
-        # 加载普通TinyVAE
+        # Load standard TinyVAE
         pipe.vae = AutoencoderTiny.from_pretrained("madebyollin/taesd").to(
             device=pipe.device, dtype=pipe.dtype
         )
 
 # ================================
-# 🚀 创建流水线
+# 🚀 Create pipeline
 # ================================
-print("🚀 创建流水线...")
+print("🚀 Building pipeline...")
 
-# 🔧 根据配置选择去噪步数
+# 🔧 Choose timesteps per config
 if USE_DYNAMIC_STEPS:
-    # 动态模式：根据NUM_INFERENCE_STEPS生成
+    # Dynamic mode: follow NUM_INFERENCE_STEPS
     t_index_list = list(range(NUM_INFERENCE_STEPS))
     prepare_steps = NUM_INFERENCE_STEPS
-    print(f"   去噪模式: 动态步数")
-    print(f"   去噪步数: {NUM_INFERENCE_STEPS}")
-    print(f"   时间步索引: {t_index_list}")
+    print(f"   Denoise mode: dynamic steps")
+    print(f"   Step count: {NUM_INFERENCE_STEPS}")
+    print(f"   Timestep indices: {t_index_list}")
 else:
-    # 固定模式：使用预设的4步（质量最优）
+    # Fixed mode: preset 4 steps (best quality)
     t_index_list = [0, 1, 2, 3]
     prepare_steps = 4
-    print(f"   去噪模式: 固定4步（质量优先）")
-    print(f"   时间步索引: {t_index_list}")
+    print(f"   Denoise mode: fixed 4 steps (quality first)")
+    print(f"   Timestep indices: {t_index_list}")
 
 stream = PipelineBatchStreamFlow(
     pipe,
-    t_index_list=t_index_list,  # 动态生成，跟随NUM_INFERENCE_STEPS
+    t_index_list=t_index_list,  # Dynamically generated, follows NUM_INFERENCE_STEPS
     torch_dtype=torch.float16,
-    frame_buffer_size=FRAME_BUFFER_SIZE,  # 帧缓冲大小：1=无缓冲，2-8=多帧缓冲
+    frame_buffer_size=FRAME_BUFFER_SIZE,  # Frame buffer size: 1=no buffer, 2-8=multi-frame buffer
     cfg_type=CFG_TYPE,  # none, full, self, initialize
-    use_pipeline_batch=USE_PIPELINE_BATCH,  # 启用流水线批量去噪
+    use_pipeline_batch=USE_PIPELINE_BATCH,  # Enable pipeline batch denoising
     vae_decode_method=VAE_DECODE_METHOD,  # "normalize", "dynamic", "clamp"
-    do_add_noise=DO_ADD_NOISE,  # 添加噪声：True=标准模式，False=快速模式
+    do_add_noise=DO_ADD_NOISE,  # True=standard, False=fast
 )
 
 # ================================
-# ⚡ 加速设置
+# ⚡ Acceleration
 # ================================
 if ACCELERATION == "xformers":
     pipe.enable_xformers_memory_efficient_attention()
-    print("⚡ xformers加速已启用")
+    print("⚡ xformers enabled")
 elif ACCELERATION == "tensorrt":
-    print("🚀 启用TensorRT加速...")
+    print("🚀 Enable TensorRT acceleration...")
     try:
         from src.streamdiffusion.acceleration.tensorrt import accelerate_with_tensorrt
         from src.streamdiffusion.pipeline import StreamDiffusion
 
-        # 🔧 根据USE_PIPELINE_BATCH选择合适的编译配置
+        # 🔧 Choose compile config based on pipeline batch
         if USE_PIPELINE_BATCH:
-            # 流水线模式：需要处理4个不同阶段 (batch_size=4)
+            # Pipeline mode: handle 4 stages (batch_size=4)
             compile_use_denoising_batch = True
             compile_max_batch_size = 4
             engine_dir = os.path.join("tensorrt_engines_pipeline_batch", CONFIG_NAME)
         else:
-            # 普通模式：逐步去噪 (batch_size=1 或 2 for CFG)
+            # Sequential mode
             compile_use_denoising_batch = False
             compile_max_batch_size = 2 if GUIDANCE_SCALE > 1.0 and CFG_TYPE != "none" else 1
             engine_dir = os.path.join("tensorrt_engines_sequential", CONFIG_NAME)
 
         os.makedirs(engine_dir, exist_ok=True)
-        print(f"   引擎目录: {engine_dir}")
-        print(f"   编译batch_size: {compile_max_batch_size}")
+        print(f"   Engine dir: {engine_dir}")
+        print(f"   Compile batch_size: {compile_max_batch_size}")
 
         temp_stream = StreamDiffusion(
             pipe, t_index_list=t_index_list, torch_dtype=torch.float16,
             frame_buffer_size=1, cfg_type=CFG_TYPE,
-            use_denoising_batch=compile_use_denoising_batch,  # 🔧 根据模式选择
+            use_denoising_batch=compile_use_denoising_batch,  # 🔧 Based on mode
             width=512, height=512,
         )
 
         temp_stream.prepare(PROMPT_BASE, NEGATIVE_PROMPT, num_inference_steps=prepare_steps, guidance_scale=GUIDANCE_SCALE)
 
-        print("   编译TensorRT引擎...")
+        print("   Compiling TensorRT engines...")
         accelerated_stream = accelerate_with_tensorrt(
             temp_stream, engine_dir=engine_dir,
-            max_batch_size=compile_max_batch_size,  # 🔧 匹配推理时的batch size
+            max_batch_size=compile_max_batch_size,  # 🔧 Match runtime batch size
             min_batch_size=1,
             use_cuda_graph=False,
         )
         
         stream.unet = accelerated_stream.unet
-        stream.vae = accelerated_stream.vae  # 🚀 使用TensorRT加速的VAE
+        stream.vae = accelerated_stream.vae  # 🚀 TensorRT-accelerated VAE
 
-        # 🚀 应用时间步兼容性修复（可选）
+        # 🚀 Optional timestep compatibility patch
         if USE_PIPELINE_BATCH and USE_TENSORRT_COMPATIBILITY:
             add_tensorrt_timestep_compatibility(stream)
-            print("   ⚠️  时间步兼容性修复已应用（会降低性能）")
+            print("   ⚠️  Timestep compatibility patch applied (slower)")
         elif USE_PIPELINE_BATCH and not USE_TENSORRT_COMPATIBILITY:
-            print("   🚀 兼容性层已禁用，使用原生TensorRT批处理")
+            print("   🚀 Compatibility layer disabled, using native TensorRT batch")
         
         del temp_stream, accelerated_stream
         torch.cuda.empty_cache()
-        print("✅ TensorRT加速已启用")
+        print("✅ TensorRT acceleration enabled")
         
     except Exception as e:
-        print(f"❌ TensorRT失败，回退到无加速: {e}")
+        print(f"❌ TensorRT failed, fallback to no acceleration: {e}")
         ACCELERATION = "none"
 
 # ================================
-# 🔥 预热
+# 🔥 Warmup
 # ================================
-# 预热阶段
-print(f"\\n🔥 预热中...")
+# Warmup phase
+print(f"\\n🔥 Warming up...")
 
 generator = torch.Generator("cuda").manual_seed(SEED)
 
 prompt_text = f"{PROMPT_BASE}; {PROMPT_SUBJECT}"
 
-# 准备StreamFlow
+# Prepare StreamFlow
 stream.prepare(prompt_text, NEGATIVE_PROMPT, num_inference_steps=prepare_steps, guidance_scale=GUIDANCE_SCALE)
 
-# 预热生成
+# Warmup generation
 for i in range(10):
     _ = stream.txt2img()
     if i == 0:
-        print("✅ 预热完成")
+        print("✅ Warmup done")
 
 # ================================
-# 🎨 图像生成
+# 🎨 Image generation
 # ================================
-print(f"\\n🎨 开始生成 {ITERATIONS} 张图像...")
-print(f"📝 提示词: {prompt_text}")
+print(f"\\n🎨 Start generating {ITERATIONS} images...")
+print(f"📝 Prompt: {prompt_text}")
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 results = []
 
 if VAE_BATCH_SIZE > 1:
-    print(f"🚀 VAE批量解码模式: batch_size={VAE_BATCH_SIZE}")
+    print(f"🚀 VAE batch decode mode: batch_size={VAE_BATCH_SIZE}")
 
-    # 批量VAE解码模式
+    # Batched VAE decode
     latent_buffer = []
     buffer_start_idx = []
     buffer_times = []
@@ -347,62 +339,62 @@ if VAE_BATCH_SIZE > 1:
         torch.cuda.synchronize()
         start_time = time.time()
 
-        # 只生成latent（不解码）
+        # Generate latents only
         latent = stream.generate_latent()
 
         torch.cuda.synchronize()
         elapsed = time.time() - start_time
 
-        # 累积到buffer
+        # Accumulate in buffer
         latent_buffer.append(latent)
         buffer_start_idx.append(i)
         buffer_times.append(elapsed)
 
-        # 当buffer满或最后一批时，批量解码
+        # When buffer is full or at the end, decode batch
         if len(latent_buffer) == VAE_BATCH_SIZE or i == ITERATIONS - 1:
             torch.cuda.synchronize()
             decode_start = time.time()
 
-            # 批量解码
+            # Batch decode
             latents_batch = torch.cat(latent_buffer, dim=0)
             images_batch = stream.decode_latents(latents_batch)
 
             torch.cuda.synchronize()
             decode_time = time.time() - decode_start
 
-            # 平摊解码时间到每张图
+            # Spread decode time across images
             decode_time_per_image = decode_time / len(latent_buffer)
 
-            # 保存图像并记录时间
+            # Save images and record time
             for j, (img_idx, gen_time) in enumerate(zip(buffer_start_idx, buffer_times)):
                 total_time = gen_time + decode_time_per_image
                 results.append(total_time)
 
-                # 保存图像
+                # Save image
                 torchvision.utils.save_image(
                     images_batch[j:j+1],
                     os.path.join(OUTPUT_DIR, f"image_{WIDTH}_{img_idx:06d}.png")
                 )
 
-                # 显示进度
+                # Progress
                 if img_idx % 10 == 0 or img_idx < 10:
                     img_per_sec = 1 / total_time
                     avg_fps = len(results) / sum(results)
-                    print(f"图像 {img_idx+1:3d}/{ITERATIONS} | FPS: {img_per_sec:6.2f} | 平均FPS: {avg_fps:6.2f} | 生成: {gen_time:.3f}s | 解码: {decode_time_per_image:.3f}s")
+                    print(f"Image {img_idx+1:3d}/{ITERATIONS} | FPS: {img_per_sec:6.2f} | Avg FPS: {avg_fps:6.2f} | UNet: {gen_time:.3f}s | Decode: {decode_time_per_image:.3f}s")
 
-            # 清空buffer
+            # Clear buffer
             latent_buffer = []
             buffer_start_idx = []
             buffer_times = []
 else:
-    print(f"📝 逐个解码模式 (VAE_BATCH_SIZE=1)")
+    print(f"📝 Per-image decode mode (VAE_BATCH_SIZE=1)")
 
-    # 原始逐个解码模式（拆分UNet/VAE计时，便于评估）
+    # Original per-image decode (separate UNet/VAE timing)
     for i in range(ITERATIONS):
         torch.cuda.synchronize()
         unet_start = time.time()
 
-        # 只生成latent
+        # Generate latent only
         latent = stream.generate_latent()
 
         torch.cuda.synchronize()
@@ -411,7 +403,7 @@ else:
         torch.cuda.synchronize()
         vae_start = time.time()
 
-        # 解码
+        # Decode
         sample = stream.decode_latents(latent)
 
         torch.cuda.synchronize()
@@ -420,22 +412,22 @@ else:
         total_time = unet_time + vae_time
         results.append(total_time)
 
-        # 计算性能
+        # Performance
         img_per_sec = 1 / total_time
         avg_fps = len(results) / sum(results)
 
-        # 保存图像
+        # Save image
         torchvision.utils.save_image(
             sample,
             os.path.join(OUTPUT_DIR, f"image_{WIDTH}_{i:06d}.png")
         )
 
-        # 显示进度
+        # Progress
         if i % 10 == 0 or i < 10:
-            print(f"图像 {i+1:3d}/{ITERATIONS} | FPS: {img_per_sec:6.2f} | 平均FPS: {avg_fps:6.2f} | 生成: {unet_time:.3f}s | 解码: {vae_time:.3f}s")
+            print(f"Image {i+1:3d}/{ITERATIONS} | FPS: {img_per_sec:6.2f} | Avg FPS: {avg_fps:6.2f} | UNet: {unet_time:.3f}s | Decode: {vae_time:.3f}s")
 
 # ================================
-# 📊 最终统计
+# 📊 Final stats
 # ================================
 if results:
     avg_time = sum(results) / len(results)
@@ -444,62 +436,62 @@ if results:
     max_time = max(results)
     
     print(f"\\n" + "=" * 50)
-    print(f"📊 性能统计")
+    print(f"📊 Performance")
     print(f"=" * 50)
-    print(f"总图像数:      {len(results)}")
-    print(f"平均生成时间:  {avg_time:.3f}s")
-    print(f"平均FPS:       {total_fps:.2f}")
-    print(f"最快FPS:       {1/min_time:.2f}")
-    print(f"最慢FPS:       {1/max_time:.2f}")
-    print(f"总用时:        {sum(results):.2f}s")
-    print(f"加速方法:      {ACCELERATION}")
-    print(f"流水线批量:    {'✅' if USE_PIPELINE_BATCH else '❌'}")
-    print(f"VAE INT8量化:  {'✅' if USE_INT8_VAE else '❌'}")
-    print(f"VAE批量解码:   {VAE_BATCH_SIZE}")
+    print(f"Total images:      {len(results)}")
+    print(f"Avg gen time:      {avg_time:.3f}s")
+    print(f"Avg FPS:           {total_fps:.2f}")
+    print(f"Fastest FPS:       {1/min_time:.2f}")
+    print(f"Slowest FPS:       {1/max_time:.2f}")
+    print(f"Total time:        {sum(results):.2f}s")
+    print(f"Acceleration:      {ACCELERATION}")
+    print(f"Pipeline batch:    {'✅' if USE_PIPELINE_BATCH else '❌'}")
+    print(f"VAE INT8:          {'✅' if USE_INT8_VAE else '❌'}")
+    print(f"VAE batch decode:  {VAE_BATCH_SIZE}")
 
-    # 🎯 性能评估
-    print(f"\\n💡 性能评估:")
+    # 🎯 Performance verdict
+    print(f"\\n💡 Performance tips:")
     if total_fps >= 12:
-        print(f"   🎉 优秀！已达到12 FPS目标 ({total_fps:.1f} FPS)")
+        print(f"   🎉 Great! Hit 12 FPS target ({total_fps:.1f} FPS)")
     elif total_fps >= 8:
-        print(f"   ✅ 良好！接近目标 ({total_fps:.1f} FPS)")
+        print(f"   ✅ Good! Close to target ({total_fps:.1f} FPS)")
     elif total_fps >= 6:
-        print(f"   ⚡ 不错！有提升空间 ({total_fps:.1f} FPS)")
+        print(f"   ⚡ Not bad! Room to improve ({total_fps:.1f} FPS)")
     else:
-        print(f"   🔧 需要优化 ({total_fps:.1f} FPS)")
+        print(f"   🔧 Needs optimization ({total_fps:.1f} FPS)")
     
-    # 🎨 质量提醒
+    # 🎨 Quality note
     if ACCELERATION == "tensorrt" and USE_PIPELINE_BATCH:
-        print(f"   🎨 TensorRT修复版：应该消除了噪音问题")
+        print(f"   🎨 TensorRT fix: noise should be removed")
     
-    print(f"\\n📁 所有图像已保存到: {OUTPUT_DIR}")
+    print(f"\\n📁 Images saved to: {OUTPUT_DIR}")
     
-    # 🚀 使用建议
-    print(f"\\n💡 优化建议:")
+    # 🚀 Suggestions
+    print(f"\\n💡 Suggestions:")
     if total_fps < 12:
         if ACCELERATION != "tensorrt":
-            print(f"   - 尝试设置 ACCELERATION = 'tensorrt' 获得更高性能")
+            print(f"   - Try ACCELERATION = 'tensorrt' for higher performance")
         if not USE_TINY_VAE:
-            print(f"   - 尝试设置 USE_TINY_VAE = True 获得更快速度")
+            print(f"   - Try USE_TINY_VAE = True for speed")
         if not USE_PIPELINE_BATCH:
-            print(f"   - 尝试设置 USE_PIPELINE_BATCH = True 启用流水线加速")
+            print(f"   - Try USE_PIPELINE_BATCH = True to enable pipeline speedup")
     else:
-        print(f"   🎉 配置已优化！享受高性能生成")
+        print(f"   🎉 Configuration looks optimized!")
 
-print(f"\\n🎉 测试完成！")
-print(f"🔍 请检查图像质量和连续性")
+print(f"\\n🎉 Test finished!")
+print(f"🔍 Please check image quality/continuity")
 
 if ACCELERATION == "tensorrt" and USE_PIPELINE_BATCH:
-    print(f"\\n💡 TensorRT修复版使用指南:")
-    print(f"   1. 设置 ACCELERATION = 'tensorrt'")
-    print(f"   2. 首次运行会自动编译引擎")
-    print(f"   3. 后续运行直接加载引擎")
-    print(f"   4. 自动处理时间步兼容性")
-    print(f"   5. 享受无噪音的TensorRT加速！")
+    print(f"\\n💡 TensorRT fix usage:")
+    print(f"   1) Set ACCELERATION = 'tensorrt'")
+    print(f"   2) First run auto-compiles engines")
+    print(f"   3) Later runs load engines directly")
+    print(f"   4) Handles timestep compatibility automatically")
+    print(f"   5) Enjoy noise-free TensorRT acceleration!")
 
-print(f"\\n🎉 生成完成！")
+print(f"\\n🎉 Generation done!")
 
-# 打印显存峰值（备用监控）
+# Print peak memory (backup monitoring)
 try:
     peak_mem_mb = torch.cuda.max_memory_reserved() / (1024 * 1024)
     print(f"PEAK_MEM_MB: {peak_mem_mb:.2f}")
