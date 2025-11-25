@@ -16,7 +16,7 @@ cd StreamFlow repo,
 ```code
 conda create -n StreamFlow python=3.11 -y
 conda activate StreamFlow
-pip install -r env/requirements_WaveGen.txt
+pip install -r env/requirements.txt
 pip install streamdiffusion[tensorrt]
 python -m streamdiffusion.tools.install-tensorrt
 ```
