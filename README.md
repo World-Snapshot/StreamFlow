@@ -2,6 +2,8 @@
 
 To speed up our [RF-based](https://github.com/lqiang67/rectified-flow) project, we developed a library based on [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion) to accelerate the Rectified Flow model, which can achieve a speedup of 300% to 600% and supports unlimited multi-GPU decoding.
 
+![StreamFlow Teaser](./static/videos/StreamFlow_teaser.gif)
+
 # StreamFlow: Theory, Strategy, and Implementation for High-Speed Rectified Flow Generation
 
 We are probably one of the few open-source tools that accelerate RF processing, and we are the first work to systematically optimize and accelerate the Rectified Flow model.

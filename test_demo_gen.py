@@ -381,7 +381,7 @@ if VAE_BATCH_SIZE > 1:
                 # 保存图像
                 torchvision.utils.save_image(
                     images_batch[j:j+1],
-                    os.path.join(OUTPUT_DIR, f"image_{img_idx:06d}.png")
+                    os.path.join(OUTPUT_DIR, f"image_{WIDTH}_{img_idx:06d}.png")
                 )
 
                 # 显示进度
@@ -427,7 +427,7 @@ else:
         # 保存图像
         torchvision.utils.save_image(
             sample,
-            os.path.join(OUTPUT_DIR, f"image_{i:06d}.png")
+            os.path.join(OUTPUT_DIR, f"image_{WIDTH}_{i:06d}.png")
         )
 
         # 显示进度

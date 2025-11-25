@@ -4,7 +4,6 @@
 engines/
 output/
 *.csv
-*.mp4
 *.safetensors
 result_lcm.png
 model.ckpt
@@ -212,3 +211,5 @@ create_eval_configs.py
 tensorrt_engines_sequential
 tensorrt_engines_pipeline_batch
 eval_*
+
+print.ipynb
