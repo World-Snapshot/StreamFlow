@@ -1,3 +1,3 @@
 ## Methodology
 
-![alt text](./static/images/method.png)
+<img src="./static/images/method.png" alt="alt text">
