@@ -1,3 +1,3 @@
 ## Experiments
 
-<img src="../static/images/abl.png" alt="AblationStudy">
+<img src="./static/images/abl.png" alt="AblationStudy">
