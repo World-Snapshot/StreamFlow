@@ -164,6 +164,10 @@ else:
     WIDTH = 512
     HEIGHT = 512
 
+# Optional environment overrides for quick resolution testing
+WIDTH = int(os.getenv("STREAMFLOW_WIDTH", WIDTH))
+HEIGHT = int(os.getenv("STREAMFLOW_HEIGHT", HEIGHT))
+
 print(f"🚀 PeRFlow high-performance generator - config: {CONFIG_NAME}")
 print("=" * 50)
 print(f"🔧 Config details:")
@@ -174,6 +178,7 @@ print(f"   VAE: {vae_desc}")
 print(f"   Acceleration: {ACCELERATION}")
 print(f"   Pipeline batch: {'✅' if USE_PIPELINE_BATCH else '❌'}")
 print(f"   Num images: {ITERATIONS}")
+print(f"   Resolution:     {WIDTH}x{HEIGHT}")
 
 # ================================
 # 📦 Model loading
@@ -229,6 +234,8 @@ stream = PipelineBatchStreamFlow(
     pipe,
     t_index_list=t_index_list,  # Dynamically generated, follows NUM_INFERENCE_STEPS
     torch_dtype=torch.float16,
+    width=WIDTH,
+    height=HEIGHT,
     frame_buffer_size=FRAME_BUFFER_SIZE,  # Frame buffer size: 1=no buffer, 2-8=multi-frame buffer
     cfg_type=CFG_TYPE,  # none, full, self, initialize
     use_pipeline_batch=USE_PIPELINE_BATCH,  # Enable pipeline batch denoising
@@ -268,7 +275,7 @@ elif ACCELERATION == "tensorrt":
             pipe, t_index_list=t_index_list, torch_dtype=torch.float16,
             frame_buffer_size=1, cfg_type=CFG_TYPE,
             use_denoising_batch=compile_use_denoising_batch,  # 🔧 Based on mode
-            width=512, height=512,
+            width=WIDTH, height=HEIGHT,
         )
 
         temp_stream.prepare(PROMPT_BASE, NEGATIVE_PROMPT, num_inference_steps=prepare_steps, guidance_scale=GUIDANCE_SCALE)

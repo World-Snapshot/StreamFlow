@@ -38,7 +38,11 @@ Therefore, the current public version is a relatively early and clean version. I
 
 **Compatibility:** We did not conduct any further experiments on other flow models. If there are slight differences in their time steps, they need to be adapted independently.
 
-**Example:** We are currently in the process of cleaning up. If you want to use it in various scenarios as soon as possible, you can develop it yourself. You can study the example of StreamDiffusion and then modify it to call our library.
+**Example:** We are currently in the process of cleaning up, but we have some tasks that are of higher priority. If you want to use it in various scenarios as soon as possible (eg, img2img), you can develop it yourself. You can study the example of StreamDiffusion and then modify it to call our library. 
+
+## Q&A
+
+- In rare cases, changing the default number of steps may result in generation errors. These issues will be addressed and resolved in future updates.
 
 ## Contact
 
