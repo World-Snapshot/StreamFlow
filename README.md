@@ -46,7 +46,7 @@ Therefore, the current public version is a relatively early and clean version. I
 
 ## Contact
 
-If you are interested in matters such as the code, how to collaborate, please contact [@FangSen9000](https://github.com/FangSen9000).
+If you are interested in matters such as the code, how to collaborate, please just contact [@FangSen9000](https://github.com/FangSen9000).
 
 ## Acknowledgments
 
