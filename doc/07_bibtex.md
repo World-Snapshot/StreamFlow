@@ -2,8 +2,8 @@
 
 ```
 @article{StreamFlow,
-  author    = {Sen Fang, etal.},
-  title     = {StreamFlow: Theory, Strategy, and Implementation for High-Speed Rectified Flow Generation},
+  author    = {Sen Fang, Hongbin Zhong, Yalin Feng, Dimitris N. Metaxas},
+  title     = {StreamFlow: Theory, Algorithm, and Implementation for High-Efficiency Rectified Flow Generation},
   journal   = {arXiv},
   year      = {2026}}
 ```
