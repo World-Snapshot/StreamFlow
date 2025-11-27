@@ -6,7 +6,7 @@ To speed up our [Rectified-Flow-based](https://github.com/lqiang67/rectified-flo
 
 ![StreamFlow Teaser](./static/videos/StreamFlow_teaser.gif)
 
-# StreamFlow: Theory, Strategy, and Implementation for High-Efficiency Rectified Flow Generation
+# StreamFlow: Theory, Algorithm, and Implementation for High-Efficiency Rectified Flow Generation
 
 We are probably one of the few open-source tools that accelerate RF processing, and we are the first work to systematically optimize and accelerate the Rectified Flow model.
 
