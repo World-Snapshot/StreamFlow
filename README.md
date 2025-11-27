@@ -54,4 +54,6 @@ If you are interested in matters such as the code, how to collaborate, please ju
 
 Thank all the authors, colleagues and friends for their work and discussions. Thank [@ZL](https://github.com/ZonglinL) for developing a multi-GPU example.
 
+We have noticed that some optical flow estimation and data processing works have the same abbreviated names as ours, but their essence is different from ours (they operate on optical flow or data flow, while we accelerate the recently emerging Rectified Flow).
+
 Finally, we would like to express our gratitude to [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion). We developed based on their work.
