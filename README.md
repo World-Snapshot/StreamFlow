@@ -1,6 +1,6 @@
 # StreamFlow
 
-[[Paper]](https://world-snapshot.github.io/StreamFlow/static/paper/StreamFlow.pdf) [[Project Page]](https://world-snapshot.github.io/StreamFlow/)
+[[Paper]](https://arxiv.org/abs/2511.22009) [[Project Page]](https://world-snapshot.github.io/StreamFlow/)
 
 To speed up our [Rectified-Flow-based](https://github.com/lqiang67/rectified-flow) project, we developed a library based on [StreamDiffusion](https://github.com/cumulo-autumn/StreamDiffusion) to accelerate the RF model, which can achieve a speedup of 300% to 600% of the original speed, and supports unlimited multi-GPU decoding.
 
